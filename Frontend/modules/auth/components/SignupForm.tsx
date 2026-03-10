@@ -15,6 +15,8 @@ const SignupForm = () => {
   const emailRef = useRef<string>("");
   const passwordRef = useRef<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const onSubmit = async() => {
     if(!nameRef || !emailRef.current || !passwordRef.current){
       if(Platform.OS === "web"){
@@ -52,9 +54,13 @@ const SignupForm = () => {
             <Input 
               icon={<MaterialCommunityIcons name="lock-outline" size={24} color="black" />}
               placeholder='Enter your password' onChangeText={(value:string)=> passwordRef.current = value} 
-              secureTextEntry
+              secureTextEntry={!showPassword}
+              rightIcon={
+                <Pressable onPress={() => setShowPassword(!showPassword)}>
+                    <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#555" />
+                </Pressable>
+              }
             />
-            {/* <Text className='text-right font-semibold' style={{ color: theme.colors.text}}>Forgot Password?</Text> */}
             <Button title={'Sign up'} loading={loading} onPress={onSubmit} />
         </View>
         <View className='flex-row justify-center gap-1 items-center'>
