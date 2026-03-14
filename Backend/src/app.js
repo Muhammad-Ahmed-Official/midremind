@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
+import medicineRouter from "./routes/medicine.routes.js";
 // import helmet from "helmet";
 // import mongoSanitize from "express-mongo-sanitize";
 const app = express();
@@ -37,6 +38,7 @@ app.get("/", (req, res) => {
 });
 
 // Routes
-app.use("/api/v1/auth", authRouter)
+app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/medicine", medicineRouter);
 
 export default app;

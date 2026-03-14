@@ -1,9 +1,12 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Switch, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Switch } from 'react-native'
 import React, { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router';
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useMedicine } from '@/modules/auth/hooks/useMedicine';
+import Toast from 'react-native-toast-message';
+import Button from '@/components/Button';
 
 
 const FREQUENCIES = [
@@ -33,7 +36,6 @@ const FREQUENCIES = [
   },
   { id: "5", label: "As needed", icon: "calendar-outline" as const, times: [] },
 ];
-
 const DURATIONS = [
   { id: "1", label: "7 days", value: 7 },
   { id: "2", label: "14 days", value: 14 },
@@ -42,8 +44,8 @@ const DURATIONS = [
   { id: "5", label: "Ongoing", value: -1 },
 ];
 
-
 const AddMedication = () => {
+  const { createMedicine, loading, error } = useMedicine();
   const router = useRouter();
   const [form, setForm] = useState({
     name: "",
@@ -55,17 +57,13 @@ const AddMedication = () => {
     notes: "",
     reminderEnabled: true,
     refillReminder: false,
-    currentSupply: "",
-    refillAt: "",
+    currentSupply: 0,
+    refillAt: 0,
   });
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [selectedDuration, setSelectedDuration] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  console.log(form)
 
   const renderFrequencyOptions = () => {
     return (
@@ -149,6 +147,31 @@ const AddMedication = () => {
     );
   };
 
+
+  const onSubmit = async() => {
+    console.log(form)
+    const result: any = await createMedicine(form);
+    if (result?.meta?.requestStatus === "fulfilled") {
+      Toast.show({ type: 'success', text1: 'Medication', text2: 'Added successfully' });
+      setForm({
+        name: "",
+        dosage: "",
+        frequency: "",
+        duration: "",
+        startDate: new Date(),
+        times: ["09:00"],
+        notes: "",
+        reminderEnabled: true,
+        refillReminder: false,
+        currentSupply: 0,
+        refillAt: 0,
+      });
+    } else {
+      // const message = (result && result.payload) || error || "Login failed";
+      Toast.show({ type: 'error', text1: 'Login', text2: result && result.payload });
+    }
+  }
+
 return (
   <View className="flex-1 bg-[#f8f9fa]">
     <LinearGradient
@@ -157,9 +180,8 @@ return (
       end={{ x: 1, y: 0 }}
       className="absolute top-0 left-0 right-0 h-[140px] ios:h-[140px] android:h-[120px]"
     />
-    <View className="flex-1 pt-12 px-5">
-      {/* Header */}
-      <View className="flex-row items-center pb-5 z-10">
+    <View className="flex-1 pt-12">
+      <View className="flex-row items-center pb-5 z-10 px-4">
         <TouchableOpacity onPress={() => router.replace('/home')} className="w-10 h-10 rounded-full bg-white justify-center items-center shadow-md">
           <Ionicons name="chevron-back" size={28} color="#1a8e2d" />
         </TouchableOpacity>
@@ -169,17 +191,13 @@ return (
       </View>
 
       <ScrollView
-        className=""
+        className="px-4"
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Inputs */}
         <View className="mb-6">
-          <View
-            className={`bg-white rounded-xl mb-3 border ${
-              errors.name ? "border-red-500" : "border-gray-200"
-            } shadow-md`}
-          >
+          <View className={`bg-white rounded-xl mb-3 border border-gray-200 shadow-md `}>
             <TextInput
               placeholder="Medication Name"
               placeholderTextColor="#999"
@@ -189,11 +207,7 @@ return (
             />
           </View>
 
-          <View
-            className={`bg-white rounded-xl mb-3 border ${
-              errors.dosage ? "border-red-500" : "border-gray-200"
-            } shadow-md`}
-          >
+          <View className={`bg-white rounded-xl mb-3 border border-gray-200 shadow-md `} >
             <TextInput
               placeholder="Dosage (e.g., 500mg)"
               placeholderTextColor="#999"
@@ -208,11 +222,8 @@ return (
         <View className="mb-6">
           <Text className="text-lg font-bold mb-2">How often?</Text>
           {renderFrequencyOptions()}
-
           <Text className="text-lg font-bold mt-4 mb-2">For how long?</Text>
           {renderDurationOptions()}
-
-          {/* Date picker */}
           <TouchableOpacity onPress={() => setShowDatePicker(true)} className="flex-row items-center bg-white p-4 rounded-xl mt-4 border border-gray-200 shadow-md">
             <View className="w-10 h-10 bg-gray-100 rounded-full justify-center items-center mr-3">
               <Ionicons name="calendar" size={20} color="#1a8e2d" />
@@ -230,27 +241,27 @@ return (
                 }}
               />
             )}
-            {form.frequency && form.frequency !== "As needed" && (
-              <View className='mt-5'>
-                <Text className='text-[16px] font-semibold text-[#333] mb-2.5'>Medication Times</Text>
-                {form.times.map((time, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    className='flex-row items-center bg-white p-4 rounded-xl mt-4 border border-gray-200 shadow-md'
-                    style={Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : { shadowOpacity: 0.05, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2 }} 
-                    onPress={() => {
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <View className='w-10 h-10 rounded-2xl bg-[#f5f5f5] items-center justify-center mr-2.5'>
-                      <Ionicons name="time-outline" size={20} color="#1a8e2d" />
-                    </View>
-                    <Text className='flex-1 text-[16px] text-[#333]'>{time}</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#666" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            {form.frequency && form.frequency !== "As needed" ? (
+                <View className='mt-5'>
+                  <Text className='text-[16px] font-semibold text-[#333] mb-2.5'>Medication Times</Text>
+                  {form.times.map((time, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      className='flex-row items-center bg-white p-4 rounded-xl mt-4 border border-gray-200 shadow-md'
+                      onPress={() => {
+                        setShowTimePicker(true);
+                      }}
+                    >
+                      <View className='w-10 h-10 rounded-2xl bg-[#f5f5f5] items-center justify-center mr-2.5'>
+                        <Ionicons name="time-outline" size={20} color="#1a8e2d" />
+                      </View>
+                      <Text className='flex-1 text-[16px] text-[#333]'>{time}</Text>
+                      <Ionicons name="chevron-forward" size={20} color="#666" />
+                    </TouchableOpacity>
+                  ))}
+                </View>) : 
+                <View></View>
+            }
             {showTimePicker && (
               <DateTimePicker
                 value={(() => {
@@ -276,7 +287,6 @@ return (
                 }}
               />
             )}
-
         </View>
 
         {/* Reminder */}
@@ -303,34 +313,93 @@ return (
         </View>
 
         {/* Refill Tracking */}
-        <View className="mb-6 bg-white rounded-xl p-5 border border-gray-200 shadow-md">
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center flex-1">
-              <View className="w-10 h-10 bg-gray-100 rounded-full justify-center items-center mr-3">
-                <Ionicons name="reload" size={20} color="#1a8e2d" />
+        <View className='mb-6'>
+          <View className="mb-6 bg-white rounded-xl p-5 border border-gray-200 shadow-md">
+            <View className="flex-row justify-between items-center">
+              <View className="flex-row items-center flex-1">
+                <View className="w-10 h-10 bg-gray-100 rounded-full justify-center items-center mr-3">
+                  <Ionicons name="reload" size={20} color="#1a8e2d" />
+                </View>
+                <View>
+                  <Text className="text-base font-semibold text-gray-800">Refill Tracking</Text>
+                  <Text className="text-xs text-gray-500">
+                    Enter how many tablets you currently have
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-base font-semibold text-gray-800">Refill Tracking</Text>
-                <Text className="text-xs text-gray-500">
-                  Get notified when you need to refill
-                </Text>
-              </View>
+              <Switch
+                value={form.refillReminder}
+                onValueChange={(val) => setForm({ ...form, refillReminder: val })}
+                trackColor={{ false: "#ddd", true: "#1a8e2d" }}
+                thumbColor="white"
+              />
             </View>
-            <Switch
-              value={form.refillReminder}
-              onValueChange={(val) => setForm({ ...form, refillReminder: val })}
-              trackColor={{ false: "#ddd", true: "#1a8e2d" }}
-              thumbColor="white"
-            />
+            {form.refillReminder && (
+                <View className='mt-3.5'>
+                  <View className='flex-row mt-3.5 gap-2'>
+                  
+                    <View className={`flex-1 bg-white rounded-xl mb-3 border border-gray-200 shadow-md`}>
+                      <TextInput
+                        className={`p-3.5 text-[16px] text-[#333]  outline-none`}
+                        placeholder="Pills remaining"
+                        placeholderTextColor="#999"
+                        value={form.currentSupply ? String(form.currentSupply) : ""}
+                        onChangeText={(text) => {
+                          setForm({ ...form, currentSupply: Number(text) || 0, });
+                        }}
+                        keyboardType="numeric"
+                      />
+                     
+                    </View>
+                    <View className={`flex-1 bg-white rounded-xl mb-3 border border-gray-200 shadow-md`}>
+                      <TextInput
+                       className={`p-3.5 text-[16px] text-[#333] outline-none`}
+                        placeholder="Alert when this pills left"
+                        placeholderTextColor="#999"
+                        value={form.refillAt ? String(form.refillAt) : ""}
+                        onChangeText={(text) => {
+                          setForm({ ...form, refillAt: Number(text) || 0 });
+                        }}
+                        keyboardType="numeric"
+                      />
+                      
+                    </View>
+                  </View>
+                </View>
+              )}
           </View>
         </View>
+
+        {/* Notes */}
+          <View className='mb-6'>
+            <View className='bg-white rounded-2xl border border-[#e0e0e0] shadow-md'>
+              <TextInput
+                className='h-24 p-3.5 text-[16px] text-[#333] outline-none'
+                placeholder="Add notes or special instructions..."
+                placeholderTextColor="#999"
+                value={form.notes}
+                onChangeText={(text) => setForm({ ...form, notes: text })}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
       </ScrollView>
 
-       <View className='p-5 bg-white border-t border-t-[#e0e0e0]'>
-          <TouchableOpacity
-            className={`rounded-2xl overflow-hidden mb-3 ${isSubmitting && 'opacity-70'}`}
-            // onPress={handleSave}
-            disabled={isSubmitting}
+      <View className='p-5 bg-white border-t border-t-[#e0e0e0]'>
+        <Button title={'Add Medication'} loading={loading} onPress={onSubmit} />
+         <TouchableOpacity
+            className='py-3.5 mt-2 rounded-2xl border border-[#e0e0e0] justify-center items-center bg-white'
+            onPress={() => router.back()}
+            disabled={loading}
+          >
+            <Text className='text-[#666] text-[16px] font-semibold'>Cancel</Text>
+          </TouchableOpacity>
+          {/* <TouchableOpacity
+            className={`rounded-2xl overflow-hidden mb-3 ${loading && 'opacity-70'}`}
+            onPress={handleSave}
+            disabled={loading}
           >
             <LinearGradient
               colors={["#1a8e2d", "#146922"]}
@@ -339,18 +408,18 @@ return (
               end={{ x: 1, y: 0 }}
             >
               <Text className='text-white text-[16px] font-bold'>
-                {isSubmitting ? "Adding..." : "Add Medication"}
+                {loading ? "Adding..." : "Add Medication"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity
             className='py-3.5 rounded-2xl border border-[#e0e0e0] justify-center items-center bg-white'
             onPress={() => router.back()}
-            disabled={isSubmitting}
+            disabled={loading}
           >
             <Text className='text-[#666] text-[16px] font-semibold'>Cancel</Text>
-          </TouchableOpacity>
-        </View>
+          </TouchableOpacity> */}
+      </View>
 
     </View>
   </View>
