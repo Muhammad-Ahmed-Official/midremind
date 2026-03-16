@@ -6,21 +6,22 @@ const medicineLogSchema = new mongoose.Schema({
         ref: "Medicine", 
         required: true 
     },
-    userId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "User", 
-        required: true 
-    },
-    date: { 
-        type: Date, 
-        required: true 
-    },
     doses: [
-    {
-      time: { type: String, required: true },
-      taken: { type: Boolean, default: false }
-    }
-  ]
+        {
+        date: { type: Date, required: true },       
+        times: [
+            {
+            time: { type: String, required: true }, 
+            taken: { type: Boolean, default: false },
+            status: {
+                type: String,
+                enum: ["pending", "taken", "missed"],
+                default: "pending"
+            }
+            }
+        ]
+        }
+    ]
 }, { timestamps: true });
 
 medicineLogSchema.index({ userId: 1, date: 1 }); // fast daily query

@@ -7,9 +7,6 @@ import { Link, router } from 'expo-router';
 import { theme } from '@/constants/theme';
 import { useMedicine } from '@/modules/auth/hooks/useMedicine';
 import Toast from 'react-native-toast-message';
-// import Skeleton from 'react-native-reanimated-skeleton';
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
 
 const { width } = Dimensions.get("window");
 const QUICK_ACTIONS = [
@@ -127,11 +124,6 @@ function CircularProgress({ progress, totalDoses, completedDoses }: CircularProg
     }).start();
   }, [progress]);
 
-  // const strokeDashoffset = animatedValue.interpolate({
-  //   inputRange: [0, 100],
-  //   outputRange: [circumference, 0],
-  // });
-
   return (
     <View collapsable={false} className='items-center justify-center my-2.5 '>
       <View className='absolute z-[1] items-center justify-center'>
@@ -168,8 +160,11 @@ function CircularProgress({ progress, totalDoses, completedDoses }: CircularProg
 
 const home = () => {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
-  const [todayMedicines, setTodayMedicines] = useState([]);
-  const { getTodaysMedicine, loading, error } = useMedicine();
+  const [todayMedicines, setTodayMedicines] = useState<any[]>([]);
+  const { getTodaysMedicine, TodaysMedicineTaken,  deleteMedicine, loading, error } = useMedicine();
+
+  const totalDoses = todayMedicines.reduce( (total, med) => total + med?.times?.length, 0 );
+  const completedDoses = todayMedicines.reduce( (total, med) => total + med?.times?.filter((t:any) => t.taken)?.length, 0 );
 
   useEffect(() => {
     const fetchTodayMeds = async () => {
@@ -190,8 +185,32 @@ const home = () => {
     fetchTodayMeds();
   }, []);
 
-  const handleTakeDose = async(data:any) => {
 
+  const handleTakeDose = async(data:any) => {
+    console.log({ logId: data?.logId, time: data.time })
+    const result: any = await TodaysMedicineTaken({ logId: data?.logId, time: data?.time });
+    if (result?.meta?.requestStatus === "fulfilled") {
+      setTodayMedicines(prev =>
+        prev.map(med =>
+          med.logId === data?.logId
+            ? { ...med, times: med.times.map((t:any) => t.time === data?.time ? { ...t, taken: true, status: "taken" } : t ) }
+            : med
+        )
+      );
+      Toast.show({ type: 'success', text1: 'Medication', text2: 'Taken successfully' });
+    } else {
+      Toast.show({ type: 'error', text1: 'Login', text2: result && result.payload });
+    }
+  };
+
+
+  const handleDeleteMedicine = async(_id: any) => {
+    setTodayMedicines(prev =>  prev.filter(med => med?.medicineId !== _id) )
+    const result: any = await deleteMedicine(_id);
+    if (result?.meta?.requestStatus === "fulfilled") {
+    } else {
+      Toast.show({ type: 'error', text1: 'Medication', text2: result && result.payload });
+    }
   }
 
   return (
@@ -204,7 +223,7 @@ const home = () => {
             </View>
             <TouchableOpacity onPress={() => setShowNotifications(!showNotifications)} className='relative p-2 bg-[rgba(255,255,255,0.15)] rounded-lg ml-2'>
               <Ionicons name='notifications-outline' size={24} color='white' />
-              {/* {todaysMedications.length > 0 && ( */}
+              {/* {todayMedicines.length > 0 && ( */}
                 <View className='absolute -top-1 -right-1 bg-[#ff5252] rounded-lg h-5 px-1 justify-center items-center min-w-5'>
                   <Text className='text-[12px] text-white font-bold'>4</Text>
                 </View>
@@ -214,7 +233,7 @@ const home = () => {
               <SimpleLineIcons name="logout" size={22} color="white" />
             </TouchableOpacity>
           </View>
-          <CircularProgress progress={(5 / 10) * 100}  totalDoses={10} completedDoses={5} />
+          <CircularProgress progress={totalDoses ? completedDoses / totalDoses : 0}  totalDoses={totalDoses || 0} completedDoses={completedDoses || 0} />
         </View>
       </LinearGradient>
       
@@ -248,19 +267,49 @@ const home = () => {
           </Link>
         </View>
 
-    {loading ? (
-      <View>
-        {[1, 2, 3].map((_, i) => (
-          <View key={i} className="flex-row items-center bg-white rounded-2xl p-4 mb-2.5">
-            <Skeleton width={48} height={48} borderRadius={24} />
-            <View className="flex-1 justify-between ml-3">
-              <Skeleton width="75%" height={16} />
-              <Skeleton width="50%" height={12} className="mt-1" />
+    {
+    loading 
+    ? (
+           <View>
+      {[1, 2, 3].map((_, index) => (
+        <View
+          key={index}
+          className="flex-row items-center bg-white rounded-2xl p-4 mb-2.5"
+          style={
+            Platform.OS === "web"
+              ? { boxShadow: "0 2px 8px rgba(0,0,0,0.05)", elevation: 3 }
+              : {
+                  shadowOpacity: 0.05,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowRadius: 8,
+                  elevation: 3,
+                }
+          }
+        >
+          {/* Avatar placeholder */}
+          <View className="w-12 h-12 rounded-3xl mr-3.5 bg-gray-300 animate-pulse" />
+
+          {/* Text + Time */}
+          <View className="flex-1 justify-between">
+            <View>
+              <View className="w-3/4 h-4 mb-1 rounded bg-gray-300 animate-pulse" />
+              <View className="w-1/2 h-3 mb-1 rounded bg-gray-300 animate-pulse" />
+            </View>
+
+            <View className="flex-row items-center mt-1">
+              <View className="w-4 h-4 rounded-full bg-gray-300 animate-pulse mr-1" />
+              <View className="w-1/4 h-3 rounded bg-gray-300 animate-pulse" />
             </View>
           </View>
-        ))}
-      </View>
-      ) : todayMedicines.length === 0 ? (
+
+          {/* Button placeholder */}
+          <View className="w-20 h-8 rounded-xl ml-2.5 bg-gray-300 animate-pulse" />
+        </View>
+      ))}
+    </View>
+      ) : 
+      todayMedicines.length === 0 ? (
         <View className='p-5 bg-white rounded-2xl mt-2.5 items-center'>
           <Ionicons name='medical-outline' size={48} color='#ccc' />
           <Text className='text-lg text-[#666] mt-2.5 mb-5 text-center'>
@@ -273,57 +322,80 @@ const home = () => {
           </Link>
         </View>
       ) : (
-      todayMedicines?.map((med, index) => (
-        <View
-          key={index}
-          style={
-            Platform.OS === 'web'
-              ? { boxShadow: "0 2px 8px rgba(0,0,0,0.05)", elevation: 3 }
-              : {
-                  shadowOpacity: 0.05,
-                  shadowColor: theme.colors.textLight,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowRadius: 8,
-                  elevation: 3
-                }
+todayMedicines.map((med, index) => (
+  <View
+    key={index}
+    style={
+      Platform.OS === 'web'
+        ? { boxShadow: "0 2px 8px rgba(0,0,0,0.05)", elevation: 3 }
+        : {
+            shadowOpacity: 0.05,
+            shadowColor: theme.colors.textLight,
+            shadowOffset: { width: 0, height: 2 },
+            shadowRadius: 8,
+            elevation: 3
           }
-          className='flex-row items-center bg-white rounded-2xl p-4 mb-2.5'
-        >
-          <View
-            className='w-12 h-12 rounded-3xl items-center justify-center mr-3.5'
-            style={{ backgroundColor: med.color }}
-          >
-            <Ionicons name='medical' size={24} />
-          </View>
+    }
+    className='bg-white rounded-2xl p-4 mb-2.5'
+  >
+    {/* Medicine Header */}
+    <View className='flex-row items-center mb-2.5'>
+      <View
+        className='w-12 h-12 rounded-3xl items-center justify-center mr-3.5'
+        style={{ backgroundColor: med.color }}
+      >
+        <Ionicons name='medical' size={24} color="#fff" />
+      </View>
+      <View className='flex-1'>
+        <Text className='text-lg font-semibold text-[#333]'>{med?.name}</Text>
+        <Text className='text-[14px] text-[#666]'>{med?.dosage}</Text>
+        {/* Display notes */}
+        {med?.notes ? (
+          <Text className='text-[12px] text-[#999] mt-1'>{med.notes}</Text>
+        ) : null}
+      </View>
+      <TouchableOpacity
+        onPress={() => handleDeleteMedicine(med?.medicineId)}
+        className='p-2 rounded-full bg-white/70'
+      >
+        <Ionicons name="trash-outline" size={20} color="#E53935" />
+      </TouchableOpacity>
+    </View>
 
-          <View className='flex-1 justify-between'>
-            <View>
-              <Text className='text-lg font-semibold text-[#333] mb-1'>{med?.name}</Text>
-              <Text className='text-[14px] text-[#666] mb-1'>{med?.dosage}</Text>
-            </View>
-
-            <View className='flex-row items-center'>
-              <Ionicons name='time-outline' size={16} color='#ccc' />
-              <Text className='ml-1 text-[#666] text-[14px]'>{med?.times[0]?.time}</Text>
-            </View>
-          </View>
-
-          {med?.times[0]?.taken === 'false' ? (
-            <View className='flex-row items-center bg-[#E8F5E9] px-3 py-1.5 rounded-xl ml-2.5'>
-              <Ionicons name='checkmark-outline' size={24} />
-              <Text className='text-[#4CAF50] font-semibold text-[14px] ml-1'>Taken</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              className='py-2 px-3.5 rounded-xl ml-2.5'
-              style={{ backgroundColor: med.color }}
-              onPress={() => handleTakeDose(med)}
-            >
-              <Text className='text-white font-semibold text-[14px]'>Take</Text>
-            </TouchableOpacity>
-          )}
+    {/* List all doses separately */}
+    {med.times.map((dose: any, idx: number) => (
+      <View
+        key={idx}
+        className='flex-row items-center justify-between mb-2.5 p-3 rounded-xl bg-gray-50'
+      >
+        <View className='flex-row items-center'>
+          <Ionicons name='time-outline' size={16} color='#666' />
+          <Text className='ml-2 text-[#333] text-[14px]'>{dose.time}</Text>
         </View>
-      ))
+
+        {dose.status === "taken" ? (
+          <View className='flex-row items-center bg-[#E8F5E9] px-3 py-1.5 rounded-xl'>
+            <Ionicons name='checkmark-outline' size={20} color='#4CAF50' />
+            <Text className='text-[#4CAF50] font-semibold text-[14px] ml-1'>Taken</Text>
+          </View>
+        ) : dose.status === "missed" ? (
+          <View className='flex-row items-center bg-[#FFEBEE] px-3 py-1.5 rounded-xl'>
+            <Ionicons name='alert-circle-outline' size={20} color='#E53935' />
+            <Text className='text-[#E53935] font-semibold text-[14px] ml-1'>Missed</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            className='py-2 px-3.5 rounded-xl'
+            style={{ backgroundColor: med.color }}
+            onPress={() => handleTakeDose({ logId: med.logId, time: dose.time })}
+          >
+            <Text className='text-white font-semibold text-[14px]'>Take</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    ))}
+  </View>
+))
     )}
       </View>
 

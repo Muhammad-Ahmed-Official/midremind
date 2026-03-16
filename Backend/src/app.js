@@ -3,8 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
 import medicineRouter from "./routes/medicine.routes.js";
-// import helmet from "helmet";
-// import mongoSanitize from "express-mongo-sanitize";
 const app = express();
 
 // Middleware Configurations – allow frontend (Expo web) origins
@@ -22,15 +20,11 @@ app.use(cors({
     cb(null, false);
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(express.json());
-// app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-// app.use(express.static("public"));
 app.use(cookieParser());
-// app.use(mongoSanitize());
-// app.use(helmet());
 
 
 app.get("/", (req, res) => {
@@ -42,3 +36,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/medicine", medicineRouter);
 
 export default app;
+
+// app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+// app.use(express.static("public"));
+// app.use(mongoSanitize());
+// app.use(helmet());

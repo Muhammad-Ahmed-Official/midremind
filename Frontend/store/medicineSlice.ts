@@ -37,6 +37,42 @@ export const getTodaysMedicineUser = createAsyncThunk("/medicine/",
   }
 );
 
+
+export const getMedicineHistoryUser = createAsyncThunk("/medicine/history",
+  async (_, thunkAPI) => {
+    try {
+      return await medicineServices.getHistory();
+    } catch (error: any) {
+      const message = error?.message
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+
+export const TodaysMedicineTakenUser = createAsyncThunk("/medicine/taken",
+  async (data: { logId: string, time: string }, thunkAPI) => {
+    try {
+      return await medicineServices.TodaysMedicineTaken(data);
+    } catch (error: any) {
+      const message = error?.message
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+
+export const deleteMedicineUser = createAsyncThunk("/medicine/delete",
+  async (data: { _id: string }, thunkAPI) => {
+    try {
+      return await medicineServices.deleteMedicine(data);
+    } catch (error: any) {
+      const message = error?.message
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 const medicineSlice = createSlice({
   name: "medicine",
   initialState,
@@ -66,6 +102,45 @@ const medicineSlice = createSlice({
             state.user = action.payload;
         })
         .addCase(getTodaysMedicineUser.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload as string;
+        })
+
+        .addCase(getMedicineHistoryUser.pending, state => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(getMedicineHistoryUser.fulfilled, (state, action) => {
+            state.loading = false;
+            state.user = action.payload;
+        })
+        .addCase(getMedicineHistoryUser.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload as string;
+        })
+
+        .addCase(TodaysMedicineTakenUser.pending, state => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(TodaysMedicineTakenUser.fulfilled, (state, action) => {
+            state.loading = false;
+            state.user = action.payload;
+        })
+        .addCase(TodaysMedicineTakenUser.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload as string;
+        })
+
+        .addCase(deleteMedicineUser.pending, state => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(deleteMedicineUser.fulfilled, (state, action) => {
+            state.loading = false;
+            state.user = action.payload;
+        })
+        .addCase(deleteMedicineUser.rejected, (state, action) => {
             state.loading = false;
             state.error = action.payload as string;
         })

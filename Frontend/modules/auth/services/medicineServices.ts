@@ -30,3 +30,34 @@ export const getTodaysMedicine = async () => {
     throw new Error(error.response?.data?.message || "Get today's Medicine data failed");
   }
 };
+
+
+export const getHistory = async () => {
+  try {
+    const response = await api.get("medicine/history");
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Get Medicine history data failed");
+  }
+};
+
+
+export const TodaysMedicineTaken = async (data: { logId: string, time: string }) => {
+  try {
+    const response = await api.patch("medicine/markTaken", data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Get today's Medicine taken failed");
+  }
+};
+
+
+export const deleteMedicine = async (data: { _id: string }) => {
+  try {
+    console.log(data)
+    const response = await api.delete("medicine/deleteMedicine", { params: { _id: data} } );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Get today's Medicine taken failed");
+  }
+};

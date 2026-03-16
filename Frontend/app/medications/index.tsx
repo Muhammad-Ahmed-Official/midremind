@@ -8,31 +8,30 @@ import { useMedicine } from '@/modules/auth/hooks/useMedicine';
 import Toast from 'react-native-toast-message';
 import Button from '@/components/Button';
 
-
 const FREQUENCIES = [
   {
     id: "1",
     label: "Once daily",
     icon: "sunny-outline" as const,
-    times: ["09:00"],
+    times: ["09:00 AM"],
   },
   {
     id: "2",
     label: "Twice daily",
     icon: "sync-outline" as const,
-    times: ["09:00", "21:00"],
+    times: ["09:00 AM", "09:00 PM"],
   },
   {
     id: "3",
     label: "Three times daily",
     icon: "time-outline" as const,
-    times: ["09:00", "15:00", "21:00"],
+    times: ["09:00 AM", "03:00 PM", "09:00 PM"],
   },
   {
     id: "4",
     label: "Four times daily",
     icon: "repeat-outline" as const,
-    times: ["09:00", "13:00", "17:00", "21:00"],
+    times: ["09:00 AM", "01:00 PM", "05:00 PM", "09:00 PM"],
   },
   { id: "5", label: "As needed", icon: "calendar-outline" as const, times: [] },
 ];
@@ -44,6 +43,40 @@ const DURATIONS = [
   { id: "5", label: "Ongoing", value: -1 },
 ];
 
+const distributeTimesEvenly = (startTime: string, frequency: number): string[] => {
+  // Extract hours, minutes, and period (AM/PM) from startTime like "03:00 AM"
+  const [time, period] = startTime.split(' ');
+  const [hoursStr, minutesStr] = time.split(':');
+  let hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+  
+  // Convert to 24-hour for calculation
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  // Calculate interval
+  const startMinutes = hours * 60 + minutes;
+  const intervalMinutes = Math.floor((24 * 60) / frequency);
+  
+  // Generate distributed times
+  const times: string[] = [];
+  for (let i = 0; i < frequency; i++) {
+    const totalMinutes = (startMinutes + (intervalMinutes * i)) % (24 * 60);
+    const h24 = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    
+    // Convert back to 12-hour format with AM/PM
+    const p = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    times.push(`${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`);
+  }
+  
+  return times;
+};
+
 const AddMedication = () => {
   const { createMedicine, loading, error } = useMedicine();
   const router = useRouter();
@@ -53,7 +86,7 @@ const AddMedication = () => {
     frequency: "",
     duration: "",
     startDate: new Date(),
-    times: ["09:00"],
+    times: ["09:00 AM"],
     notes: "",
     reminderEnabled: true,
     refillReminder: false,
@@ -70,7 +103,7 @@ const AddMedication = () => {
       <View className="flex-row flex-wrap -mx-1.5">
         {FREQUENCIES.map((freq) => {
           const isSelected = selectedFrequency === freq.label;
-
+  
           return (
             <TouchableOpacity
               key={freq.id}
@@ -78,9 +111,22 @@ const AddMedication = () => {
                 isSelected ? "bg-green-800 border-green-800" : "bg-white border-gray-200"
               }`}
               onPress={() => {
-                // Toggle selection
                 setSelectedFrequency(isSelected ? "" : freq.label);
-                setForm({ ...form, frequency: isSelected ? "" : freq.label });
+                
+                // Set initial times based on frequency
+                if (!isSelected) {
+                  setForm({ 
+                    ...form, 
+                    frequency: freq.label,
+                    times: freq.times // Use default times initially
+                  });
+                } else {
+                  setForm({ 
+                    ...form, 
+                    frequency: "",
+                    times: ["09:00 AM"]
+                  });
+                }
               }}
             >
               <View
@@ -149,7 +195,6 @@ const AddMedication = () => {
 
 
   const onSubmit = async() => {
-    console.log(form)
     const result: any = await createMedicine(form);
     if (result?.meta?.requestStatus === "fulfilled") {
       Toast.show({ type: 'success', text1: 'Medication', text2: 'Added successfully' });
@@ -159,7 +204,7 @@ const AddMedication = () => {
         frequency: "",
         duration: "",
         startDate: new Date(),
-        times: ["09:00"],
+        times: ["09:00 AM"],
         notes: "",
         reminderEnabled: true,
         refillReminder: false,
@@ -242,51 +287,88 @@ return (
               />
             )}
             {form.frequency && form.frequency !== "As needed" ? (
-                <View className='mt-5'>
-                  <Text className='text-[16px] font-semibold text-[#333] mb-2.5'>Medication Times</Text>
-                  {form.times.map((time, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      className='flex-row items-center bg-white p-4 rounded-xl mt-4 border border-gray-200 shadow-md'
-                      onPress={() => {
-                        setShowTimePicker(true);
-                      }}
-                    >
-                      <View className='w-10 h-10 rounded-2xl bg-[#f5f5f5] items-center justify-center mr-2.5'>
-                        <Ionicons name="time-outline" size={20} color="#1a8e2d" />
-                      </View>
-                      <Text className='flex-1 text-[16px] text-[#333]'>{time}</Text>
-                      <Ionicons name="chevron-forward" size={20} color="#666" />
-                    </TouchableOpacity>
-                  ))}
-                </View>) : 
+                  <View className='mt-5'>
+    <Text className='text-[16px] font-semibold text-[#333] mb-2.5'>
+      Medication Times ({form.times.length} {form.times.length === 1 ? 'dose' : 'doses'} per day)
+    </Text>
+    {form.times.map((time, index) => (
+      <TouchableOpacity
+        key={index}
+        className='flex-row items-center bg-white p-4 rounded-xl mt-2 border border-gray-200 shadow-md'
+        onPress={() => {
+          // Set which time index we're editing
+          setShowTimePicker(true);
+          // You might want to add a state to track which time is being edited
+        }}
+      >
+        <View className='w-10 h-10 rounded-2xl bg-[#f5f5f5] items-center justify-center mr-2.5'>
+          <Ionicons name="time-outline" size={20} color="#1a8e2d" />
+        </View>
+        <View className="flex-1">
+          <Text className='text-[16px] text-[#333] font-semibold'>{time}</Text>
+          <Text className='text-[12px] text-gray-500'>Dose {index + 1} of {form.times.length}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#666" />
+      </TouchableOpacity>
+    ))}
+  </View>) : 
                 <View></View>
             }
             {showTimePicker && (
-              <DateTimePicker
-                value={(() => {
-                  const [hours, minutes] = form.times[0].split(":").map(Number);
-                  const date = new Date();
-                  date.setHours(hours, minutes, 0, 0);
-                  return date;
-                })()}
-                mode="time"
-                onChange={(event, date) => {
-                  setShowTimePicker(false);
-                  if (date) {
-                    const newTime = date.toLocaleTimeString("default", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    });
-                    setForm((prev) => ({
-                      ...prev,
-                      times: prev.times.map((t, i) => (i === 0 ? newTime : t)),
-                    }));
-                  }
-                }}
-              />
-            )}
+  <DateTimePicker
+    value={(() => {
+      // Parse current time from form.times[0] like "09:00 AM"
+      const [time, period] = form.times[0].split(' ');
+      const [hoursStr, minutesStr] = time.split(':');
+      let hours = parseInt(hoursStr, 10);
+      const minutes = parseInt(minutesStr, 10);
+      
+      // Convert to 24-hour for Date object
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    })()}
+    mode="time"
+    onChange={(event, date) => {
+      setShowTimePicker(false);
+      if (date) {
+        // Get hours and minutes from picker
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        
+        // Convert to 12-hour format with AM/PM
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const hours12 = hours % 12 || 12;
+        const newTime = `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+        
+        // Get number of doses from frequency
+        const frequencyMap: { [key: string]: number } = {
+          "Once daily": 1,
+          "Twice daily": 2,
+          "Three times daily": 3,
+          "Four times daily": 4,
+          "As needed": 0,
+        };
+        
+        const doses = frequencyMap[form.frequency] || 1;
+        
+        // Distribute times evenly
+        const distributedTimes = distributeTimesEvenly(newTime, doses);
+        
+        setForm((prev) => ({
+          ...prev,
+          times: distributedTimes,
+        }));
+      }
+    }}
+  />
+)}
         </View>
 
         {/* Reminder */}
