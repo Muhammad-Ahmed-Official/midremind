@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
 import medicineRouter from "./routes/medicine.routes.js";
+import { isDbConnected } from "./db/index.js";
 const app = express();
 
 // Middleware Configurations – allow frontend (Expo web) origins
@@ -30,6 +31,26 @@ app.use(cookieParser());
 
 app.get("/", (req, res) => {
   res.send("Hello World");
+});
+
+app.use("/api/v1", async (req, res, next) => {
+  if (isDbConnected()) return next();
+  try {
+    await ensureConnection();
+  } catch (err) {
+    console.error("[DB] ensureConnection failed:", err.message);
+    return res.status(503).json({
+      status: false,
+      message: "Database is not ready. Please try again in a moment.",
+    });
+  }
+  if (!isDbConnected()) {
+    return res.status(503).json({
+      status: false,
+      message: "Database is not ready. Please try again in a moment.",
+    });
+  }
+  next();
 });
 
 // Routes
